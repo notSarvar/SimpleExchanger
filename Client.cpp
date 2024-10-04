@@ -73,7 +73,7 @@ private:
 
   void do_read() {
     boost::asio::async_read_until(
-        socket_, buffer_, "\n", [this](std::error_code ec, std::size_t length) {
+        socket_, buffer_, "\n", [this](std::error_code ec, std::size_t) {
           if (!ec) {
             std::istream is(&buffer_);
             std::string line;

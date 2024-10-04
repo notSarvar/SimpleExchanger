@@ -2,13 +2,19 @@
 #include "Core.h"
 #include <boost/asio.hpp>
 #include <boost/bind/bind.hpp>
+#include <cstddef>
+#include <memory>
 #include <nlohmann/json.hpp>
+#include <optional>
+#include <unordered_map>
 
 using boost::asio::ip::tcp;
 
-class session {
+class session : public std::enable_shared_from_this<session> {
 public:
-  session(boost::asio::io_context &io_context) : socket_(io_context) {}
+  session(tcp::socket socket,
+          std::unordered_map<size_t, std::weak_ptr<session>> &clients)
+      : socket_(std::move(socket)), clients_(clients) {}
 
   tcp::socket &socket() { return socket_; }
 
@@ -93,6 +99,7 @@ private:
   tcp::socket socket_;
   enum { max_length = 1024 };
   char data_[max_length];
+  std::unordered_map<size_t, std::weak_ptr<session>> &clients_;
 };
 
 class server {
@@ -105,26 +112,20 @@ public:
 
 private:
   void start_accept() {
-    session *new_session = new session(io_context_);
-    acceptor_.async_accept(new_session->socket(),
-                           boost::bind(&server::handle_accept, this,
-                                       new_session,
-                                       boost::asio::placeholders::error));
-  }
+    socket_.emplace(io_context_);
+    acceptor_.async_accept(*socket_, [this](std::error_code ec) {
+      if (!ec) {
+        std::make_shared<session>(std::move(socket_), clients_)->start();
+      }
 
-  void handle_accept(session *new_session,
-                     const boost::system::error_code &error) {
-    if (!error) {
-      new_session->start();
-    } else {
-      delete new_session;
-    }
-
-    start_accept();
+      start_accept();
+    });
   }
 
   boost::asio::io_context &io_context_;
+  std::optional<tcp::socket> socket_;
   tcp::acceptor acceptor_;
+  std::unordered_map<size_t, std::weak_ptr<session>> clients_;
 };
 
 int main(int argc, char *argv[]) {
