@@ -62,21 +62,11 @@ public:
           return;
         }
 
-        auto to_notify = side == "Buy"
-                             ? core.make_order<ESide::EBuy>(
-                                   j["UserId"], j["Quantity"], j["Price"])
-                             : core.make_order<ESide::ESell>(
-                                   j["UserId"], j["Quantity"], j["Price"]);
-        for (const auto &user_id : to_notify) {
-          auto &messages = core.get_to_send(user_id);
-          for (const auto &message : messages) {
-            std::string msg = message.dump();
-            boost::asio::async_write(
-                socket_, boost::asio::buffer(msg.data(), msg.size()),
-                boost::bind(&session::handle_write, this,
-                            boost::asio::placeholders::error));
-          }
-        }
+        side == "Buy" ? core.make_order<ESide::EBuy>(j["UserId"], j["Quantity"],
+                                                     j["Price"])
+                      : core.make_order<ESide::ESell>(
+                            j["UserId"], j["Quantity"], j["Price"]);
+
         reply = "Order placed successfully";
       }
 
