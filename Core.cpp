@@ -1,4 +1,5 @@
 #include "core.h"
+#include <cstddef>
 
 std::vector<nlohmann::json> &Core::get_to_send(size_t user_id) {
   return to_send_[user_id];
@@ -31,4 +32,10 @@ size_t Core::reg() {
   auto response = users_[last_user_id_].as_json();
   to_send_[last_user_id_].push_back(response);
   return last_user_id_;
+}
+
+size_t Core::get_last_user_id() const { return last_user_id_; }
+
+std::string Core::get_info(size_t user_id) {
+  return users_[user_id].as_json().dump();
 }

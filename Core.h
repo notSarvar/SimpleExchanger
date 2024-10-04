@@ -12,8 +12,7 @@
 class Core : public Singleton<Core> {
 public:
   template <ESide side, typename... Args>
-  std::unordered_set<size_t> &make_order(Args &&...args) {
-    to_notify_.clear();
+  void make_order(Args &&...args) {
     auto trade_handler = [this](size_t our_order_id, size_t other_order_id,
                                 size_t quantity) {
       const Order &our_order = order_book_.get_order_by_id(our_order_id);
@@ -39,12 +38,15 @@ public:
     const Order &order = order_book_.get_order_by_id(order_id);
     users_[order.user_id].add_order(order_id);
     to_send_[order.user_id].push_back(order.as_json());
-    return to_notify_;
   }
 
   void view_orders(size_t user_id);
 
   void user_info(size_t user_id);
+
+  size_t get_last_user_id() const;
+
+  std::string get_info(size_t user_id);
 
   std::vector<nlohmann::json> &get_to_send(size_t user_id);
 

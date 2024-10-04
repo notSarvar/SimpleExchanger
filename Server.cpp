@@ -38,8 +38,19 @@ public:
       std::string_view reply = "Error! Unknown request type";
       if (reqType == Requests::Registration) {
         core.reg();
+        clients_[core.get_last_user_id()] = weak_from_this();
         reply = "Registration successful";
       }
+
+      if (reqType == Requests::ViewBalance) {
+        reply = core.get_info(j["UserId"]);
+      }
+
+      /*if (reqType == Requests::ViewOrders) {
+        core.view_orders(j["UserId"]);
+        reply = "Orders viewed successfully";
+      }*/ //TODO
+
       if (reqType == Requests::MakeOrder) {
         auto side = j["Side"];
         if (side != "Buy" && side != "Sell") {
@@ -67,11 +78,6 @@ public:
           }
         }
         reply = "Order placed successfully";
-      }
-
-      if (reqType == Requests::ViewOrders) {
-        core.view_orders(j["UserId"]);
-        reply = "Orders viewed successfully";
       }
 
       boost::asio::async_write(socket_,
