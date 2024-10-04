@@ -18,83 +18,113 @@ public:
 
   tcp::socket &socket() { return socket_; }
 
-  void start() {
+  void start() { first_read(); }
+
+private:
+  void first_read() {
+    auto self(shared_from_this());
     socket_.async_read_some(
         boost::asio::buffer(data_, max_length),
-        boost::bind(&session::handle_read, this,
-                    boost::asio::placeholders::error,
-                    boost::asio::placeholders::bytes_transferred));
+        [this, self](std::error_code ec, size_t bytes_transferred) {
+          if (!ec) {
+            data_[bytes_transferred] = '\0';
+            auto j = nlohmann::json::parse(data_);
+            auto reqType = j["ReqType"];
+            auto core = Core::get();
+
+            if (reqType == Requests::Registration) {
+              user_id_ = core.reg();
+              clients_[user_id_] = weak_from_this();
+            }
+            on_write();
+          }
+        });
   }
 
-  void handle_read(const boost::system::error_code &error,
-                   size_t bytes_transferred) {
-    if (!error) {
-      data_[bytes_transferred] = '\0';
+  void on_read() {
+    auto self(shared_from_this());
+    socket_.async_read_some(
+        boost::asio::buffer(data_, max_length),
+        [this, self](std::error_code ec, size_t bytes_transferred) {
+          if (!ec) {
+            data_[bytes_transferred] = '\0';
+            auto j = nlohmann::json::parse(data_);
+            auto reqType = j["ReqType"];
+            auto core = Core::get();
 
-      auto j = nlohmann::json::parse(data_);
-      auto reqType = j["ReqType"];
-      auto core = Core::get();
+            if (reqType == Requests::ViewInfo) {
+              core.get_info(user_id_);
+            }
 
-      std::string_view reply = "Error! Unknown request type";
-      if (reqType == Requests::Registration) {
-        core.reg();
-        clients_[core.get_last_user_id()] = weak_from_this();
-        reply = "Registration successful";
-      }
+            if (reqType == Requests::ViewOrders) {
+              core.view_orders(user_id_);
+            }
 
-      if (reqType == Requests::ViewBalance) {
-        reply = core.get_info(j["UserId"]);
-      }
+            if (reqType == Requests::MakeOrder) {
+              auto side = j["Side"];
+              auto to_notify =
+                  side == "Buy" ? core.make_order<ESide::EBuy>(
+                                      j["UserId"], j["Quantity"], j["Price"])
+                                : core.make_order<ESide::ESell>(
+                                      j["UserId"], j["Quantity"], j["Price"]);
+              for (size_t id : to_notify) {
+                do_notify(id);
+              }
+            }
 
-      /*if (reqType == Requests::ViewOrders) {
-        core.view_orders(j["UserId"]);
-        reply = "Orders viewed successfully";
-      }*/ //TODO
-
-      if (reqType == Requests::MakeOrder) {
-        auto side = j["Side"];
-        if (side != "Buy" && side != "Sell") {
-          reply = "Error! Unknown side";
-          boost::asio::async_write(
-              socket_, boost::asio::buffer(reply.data(), reply.size()),
-              boost::bind(&session::handle_write, this,
-                          boost::asio::placeholders::error));
-          return;
-        }
-
-        side == "Buy" ? core.make_order<ESide::EBuy>(j["UserId"], j["Quantity"],
-                                                     j["Price"])
-                      : core.make_order<ESide::ESell>(
-                            j["UserId"], j["Quantity"], j["Price"]);
-
-        reply = "Order placed successfully";
-      }
-
-      boost::asio::async_write(socket_,
-                               boost::asio::buffer(reply.data(), reply.size()),
-                               boost::bind(&session::handle_write, this,
-                                           boost::asio::placeholders::error));
-    } else {
-      delete this;
-    }
+            on_write();
+          }
+        });
   }
 
-  void handle_write(const boost::system::error_code &error) {
-    if (!error) {
-      socket_.async_read_some(
-          boost::asio::buffer(data_, max_length),
-          boost::bind(&session::handle_read, this,
-                      boost::asio::placeholders::error,
-                      boost::asio::placeholders::bytes_transferred));
-    } else {
-      delete this;
+  void on_write() {
+    auto self(shared_from_this());
+    auto response = make_response(user_id_);
+    auto str = response.dump();
+    boost::asio::async_write(
+        socket_, boost::asio::buffer(std::move(str) + '\0'),
+        [this, self, response = std::move(response)](std::error_code ec,
+                                                     size_t /*length*/) {
+          if (!ec) {
+            on_read();
+          } else {
+            Core::get().get_to_send(user_id_).push_back(response);
+          }
+        });
+  }
+
+  void do_notify(size_t user_id) {
+    if (clients_[user_id].expired()) {
+      return;
     }
+    auto session = clients_[user_id].lock();
+    auto response = make_response(user_id);
+    auto str = response.dump();
+    boost::asio::async_write(
+        session->socket_, boost::asio::buffer(std::move(str) + '\0'),
+        [this, session, response = std::move(response),
+         user_id](std::error_code ec, size_t /*length*/) {
+          if (ec) {
+            Core::get().get_to_send(user_id).push_back(response);
+            do_notify(user_id);
+          }
+        });
+  }
+
+  nlohmann::json make_response(size_t user_id) {
+    nlohmann::json response;
+    for (auto &&j : Core::get().get_to_send(user_id)) {
+      response += j;
+    }
+    Core::get().get_to_send(user_id).resize(0);
+    return response;
   }
 
 private:
   tcp::socket socket_;
   enum { max_length = 1024 };
   char data_[max_length];
+  size_t user_id_;
   std::unordered_map<size_t, std::weak_ptr<session>> &clients_;
 };
 

@@ -10,6 +10,7 @@ static std::string Registration = "Reg";
 static std::string MakeOrder = "MOrder";
 static std::string ViewOrders = "VOreders";
 static std::string ViewBalance = "VBalance";
+static std::string ViewInfo = "VInfo";
 } // namespace Requests
 
 enum class EFields {
