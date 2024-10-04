@@ -131,15 +131,14 @@ private:
 class server {
 public:
   server(boost::asio::io_context &io_context, short port)
-      : io_context_(io_context),
+      : socket_(io_context),
         acceptor_(io_context, tcp::endpoint(tcp::v4(), port)) {
     start_accept();
   }
 
 private:
   void start_accept() {
-    socket_.emplace(io_context_);
-    acceptor_.async_accept(*socket_, [this](std::error_code ec) {
+    acceptor_.async_accept(socket_, [this](std::error_code ec) {
       if (!ec) {
         std::make_shared<session>(std::move(socket_), clients_)->start();
       }
@@ -148,8 +147,7 @@ private:
     });
   }
 
-  boost::asio::io_context &io_context_;
-  std::optional<tcp::socket> socket_;
+  tcp::socket socket_;
   tcp::acceptor acceptor_;
   std::unordered_map<size_t, std::weak_ptr<session>> clients_;
 };

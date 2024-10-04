@@ -3,6 +3,8 @@
 #include "Common.hpp"
 #include "json.hpp"
 
+#include <queue>
+
 struct Order {
   size_t order_id;
   size_t user_id;
