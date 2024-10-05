@@ -1,9 +1,6 @@
-#include "Common.hpp"
+#include "nlohmann/json.hpp"
 #include <boost/asio.hpp>
 #include <iostream>
-#include <nlohmann/json.hpp>
-#include <string>
-#include <thread>
 
 using boost::asio::ip::tcp;
 
@@ -15,115 +12,140 @@ public:
     do_connect(endpoints);
   }
 
-  void menu() {
-    std::cout << "Menu:\n"
-                 "1) Make Order\n"
-                 "2) View Orders\n"
-                 "3) Exit\n"
-              << std::endl;
-
-    short menu_option_num;
-    std::cin >> menu_option_num;
-    switch (menu_option_num) {
-    case 1: {
-      nlohmann::json order_data;
-      std::cout << "Enter side (0 for Buy, 1 for Sell): ";
-      int side;
-      std::cin >> side;
-      order_data["Side"] = side;
-
-      std::cout << "Enter quantity: ";
-      int quantity;
-      std::cin >> quantity;
-      order_data["Quantity"] = quantity;
-
-      std::cout << "Enter price: ";
-      int price;
-      std::cin >> price;
-      order_data["Price"] = price;
-
-      do_write("ReqType", Requests::MakeOrder, "UserId", my_id_, "Data",
-               order_data);
-      break;
-    }
-    case 2: {
-      do_write("ReqType", Requests::ViewOrders, "UserId", my_id_);
-      break;
-    }
-    case 3: {
-      exit(0);
-      break;
-    }
-    default: {
-      std::cout << "Unknown menu option\n" << std::endl;
-    }
-    }
-  }
-
 private:
-  void do_connect(const tcp::resolver::results_type &endpoints) {
-    boost::asio::async_connect(socket_, endpoints,
-                               [this](std::error_code ec, tcp::endpoint) {
-                                 if (!ec) {
-                                   do_read();
-                                   do_write("ReqType", Requests::Registration);
-                                 }
-                               });
+  void close() {
+    socket_.shutdown(boost::asio::ip::tcp::socket::shutdown_both);
+    socket_.close();
   }
 
-  void do_read() {
-    boost::asio::async_read_until(
-        socket_, buffer_, "\n", [this](std::error_code ec, std::size_t) {
+  void do_connect(const tcp::resolver::results_type &endpoints) {
+    boost::asio::async_connect(
+        socket_, endpoints,
+        [this](boost::system::error_code ec, const tcp::endpoint &) {
           if (!ec) {
-            std::istream is(&buffer_);
-            std::string line;
-            std::getline(is, line);
-            auto response = nlohmann::json::parse(line);
-
-            if (response.contains("UserId")) {
-              my_id_ = response["UserId"];
-            }
-
-            std::cout << "Server response: " << line << std::endl;
-            menu();
+            auth();
           }
         });
   }
 
-  template <typename... Args> void do_write(const Args &...args) {
-    auto request = make_req(std::make_pair(args, args)...);
+  void do_read() {
+    boost::asio::async_read_until(
+        socket_, buffer_, '\0', [this](std::error_code ec, size_t) {
+          if (!ec) {
+            std::istream is(&buffer_);
+            std::string line(std::istreambuf_iterator<char>(is), {});
+            auto j = nlohmann::json::parse(line);
+            std::cout << "Response: " << j.dump() << "\n";
+            do_read();
+          }
+        });
+  }
+
+  void auth() {
+    std::cout << "Menu:\n";
+    std::cout << 1 << ") "
+              << "Exit" << '\n';
+    std::cout << 2 << ") "
+              << "Registration" << '\n';
+
+    int menu_option_num;
+    std::cin >> menu_option_num;
+    switch (menu_option_num) {
+    case 2: {
+      do_write("Reg");
+      do_read();
+      break;
+    }
+    case 1: {
+      close();
+      break;
+    }
+    default: {
+      std::cout << "Unknown menu option\n" << std::endl;
+      auth();
+    }
+    }
+  }
+
+  void menu() {
+    std::cout << "Menu:\n";
+    std::cout << 1 << ") "
+              << "Exit" << '\n';
+    std::cout << 2 << ") "
+              << "ViewOrders" << '\n';
+    std::cout << 3 << ") "
+              << "ViewUserInfo" << '\n';
+    std::cout << 4 << ") "
+              << "MakeOrder" << '\n';
+    int menu_option_num;
+    std::cin >> menu_option_num;
+    switch (menu_option_num) {
+    case 2: {
+      do_write("VOrders");
+      break;
+    }
+    case 3: {
+      do_write("VInfo");
+      break;
+    }
+    case 4: {
+      std::cout << "Enter: Side Quantity Price: ";
+      std::string side;
+      int q, p;
+      std::cin >> side >> q >> p;
+      if (q <= 0 || p <= 0 || (side != "Buy" && side != "Sell")) {
+        std::cout << "Incorrect data\n";
+        menu();
+      } else {
+        do_write("MOrder", side, q, p);
+      }
+      break;
+    }
+    case 1: {
+      close();
+      break;
+    }
+    default: {
+      std::cout << "Unknown menu option\n" << std::endl;
+      menu();
+    }
+    }
+  }
+
+  template <typename... Args> void do_write(std::string req_type, std::string side = "", int q = 0, int p = 0) {
+    nlohmann::json req;
+    req["ReqType"] = req_type;
+    if (req_type == "MOrder") {
+      req["ReqType"] = req_type;
+      req["Side"] = side;
+      req["Quantity"] = q;
+      req["Price"] = p;
+    }
+    
     boost::asio::async_write(socket_,
-                             boost::asio::buffer(request, request.size()),
+                             boost::asio::buffer(req.dump(), req.dump().size() + 1),
                              [this](std::error_code ec, size_t) {
                                if (!ec) {
-                                 do_read();
+                                 menu();
                                }
                              });
   }
 
-  template <typename... Args> std::string make_req(const Args &...args) {
-    nlohmann::json req;
-    auto add = [&req](auto &pair) { req[pair.first] = pair.second; };
-
-    [[maybe_unused]] int dummy[sizeof...(Args)] = {(add(args), 0)...};
-    return req.dump() + "\n";
-  }
-
   tcp::socket socket_;
   boost::asio::streambuf buffer_;
-  std::string my_id_;
 };
 
 int main(int argc, char *argv[]) {
   try {
     boost::asio::io_context io_context;
+
     tcp::resolver resolver(io_context);
 
     Client client(io_context, resolver.resolve(
                                   tcp::v4(), (argc > 1 ? argv[1] : "127.0.0.1"),
-                                  (argc > 2 ? argv[2] : "12345")));
+                                  (argc > 2 ? argv[2] : "5555")));
 
-    std::thread t([&io_context]() { io_context.run(); });
+    std::thread t([&]() { io_context.run(); });
     io_context.run();
 
     t.join();
