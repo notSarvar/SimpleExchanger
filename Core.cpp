@@ -1,4 +1,4 @@
-#include "core.h"
+#include "Core.h"
 #include <cstddef>
 
 std::vector<nlohmann::json> &Core::get_to_send(size_t user_id) {

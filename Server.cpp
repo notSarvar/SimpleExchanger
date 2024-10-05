@@ -5,7 +5,6 @@
 #include <cstddef>
 #include <memory>
 #include <nlohmann/json.hpp>
-#include <optional>
 #include <unordered_map>
 
 using boost::asio::ip::tcp;
@@ -53,7 +52,7 @@ private:
             auto core = Core::get();
 
             if (reqType == Requests::ViewInfo) {
-              core.get_info(user_id_);
+              core.user_info(user_id_);
             }
 
             if (reqType == Requests::ViewOrders) {

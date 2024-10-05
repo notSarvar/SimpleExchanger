@@ -46,8 +46,6 @@ public:
 
   size_t get_last_user_id() const;
 
-  std::string get_info(size_t user_id);
-
   std::vector<nlohmann::json> &get_to_send(size_t user_id);
 
   size_t reg();
