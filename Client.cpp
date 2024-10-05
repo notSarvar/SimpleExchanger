@@ -112,23 +112,24 @@ private:
     }
   }
 
-  template <typename... Args> void do_write(std::string req_type, std::string side = "", int q = 0, int p = 0) {
+  template <typename... Args>
+  void do_write(std::string req_type, std::string side = "", int q = 0,
+                int p = 0) {
     nlohmann::json req;
     req["ReqType"] = req_type;
     if (req_type == "MOrder") {
-      req["ReqType"] = req_type;
       req["Side"] = side;
       req["Quantity"] = q;
       req["Price"] = p;
     }
-    
-    boost::asio::async_write(socket_,
-                             boost::asio::buffer(req.dump(), req.dump().size() + 1),
-                             [this](std::error_code ec, size_t) {
-                               if (!ec) {
-                                 menu();
-                               }
-                             });
+
+    boost::asio::async_write(
+        socket_, boost::asio::buffer(req.dump(), req.dump().size() + 1),
+        [this](std::error_code ec, size_t) {
+          if (!ec) {
+            menu();
+          }
+        });
   }
 
   tcp::socket socket_;

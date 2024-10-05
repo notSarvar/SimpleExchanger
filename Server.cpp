@@ -3,8 +3,10 @@
 #include <boost/asio.hpp>
 #include <boost/bind/bind.hpp>
 #include <cstddef>
+#include <iostream>
 #include <memory>
 #include <nlohmann/json.hpp>
+#include <string>
 #include <unordered_map>
 
 using boost::asio::ip::tcp;
@@ -29,13 +31,15 @@ private:
             data_[bytes_transferred] = '\0';
             auto j = nlohmann::json::parse(data_);
             auto reqType = j["ReqType"];
-            auto core = Core::get();
-
+            auto &core = Core::get();
             if (reqType == Requests::Registration) {
               user_id_ = core.reg();
               clients_[user_id_] = weak_from_this();
             }
-            on_write();
+            on_write("Registration of user" + std::to_string(user_id_) +
+                     "successful");
+          } else {
+            std::cout << "Error: " << ec.message() << std::endl;
           }
         });
   }
@@ -49,34 +53,41 @@ private:
             data_[bytes_transferred] = '\0';
             auto j = nlohmann::json::parse(data_);
             auto reqType = j["ReqType"];
-            auto core = Core::get();
+            auto &core = Core::get();
 
+            std::string log = "Bad request";
             if (reqType == Requests::ViewInfo) {
+              log = "ViewInfo for user: " + std::to_string(user_id_) + "\n";
               core.user_info(user_id_);
             }
 
             if (reqType == Requests::ViewOrders) {
+              log = "ViewOreders for user: " + std::to_string(user_id_) + '\n';
               core.view_orders(user_id_);
             }
 
             if (reqType == Requests::MakeOrder) {
+              log = "MakeOrder for user: " + std::to_string(user_id_) + '\n';
               auto side = j["Side"];
-              auto to_notify =
-                  side == "Buy" ? core.make_order<ESide::EBuy>(
-                                      j["UserId"], j["Quantity"], j["Price"])
-                                : core.make_order<ESide::ESell>(
-                                      j["UserId"], j["Quantity"], j["Price"]);
+              auto &to_notify = side == "Buy"
+                                    ? core.make_order<ESide::EBuy>(
+                                          user_id_, j["Quantity"], j["Price"])
+                                    : core.make_order<ESide::ESell>(
+                                          user_id_, j["Quantity"], j["Price"]);
               for (size_t id : to_notify) {
                 do_notify(id);
               }
             }
 
-            on_write();
+            on_write(std::move(log));
+          } else {
+            std::cout << "Error: " << ec.message() << std::endl;
           }
         });
   }
 
-  void on_write() {
+  void on_write(std::string log) {
+    std::cout << log << std::endl;
     auto self(shared_from_this());
     auto response = make_response(user_id_);
     auto str = response.dump();
@@ -111,11 +122,13 @@ private:
   }
 
   nlohmann::json make_response(size_t user_id) {
+    std::cout << "Response for user: " << user_id << std::endl;
     nlohmann::json response;
     for (auto &&j : Core::get().get_to_send(user_id)) {
       response += j;
     }
     Core::get().get_to_send(user_id).resize(0);
+    std::cout << "Response: " << response << std::endl;
     return response;
   }
 
@@ -132,6 +145,7 @@ public:
   server(boost::asio::io_context &io_context, short port)
       : socket_(io_context),
         acceptor_(io_context, tcp::endpoint(tcp::v4(), port)) {
+    std::cout << "Server started on port: " << port << std::endl;
     start_accept();
   }
 
@@ -153,13 +167,9 @@ private:
 
 int main(int argc, char *argv[]) {
   try {
-    if (argc != 2) {
-      std::cerr << "Usage: server <port>\n";
-      return 1;
-    }
-
     boost::asio::io_context io_context;
-    server s(io_context, std::atoi(argv[1]));
+    Core::init();
+    server s(io_context, argc > 1 ? std::atoi(argv[1]) : 5555);
     io_context.run();
   } catch (std::exception &e) {
     std::cerr << "Exception: " << e.what() << "\n";

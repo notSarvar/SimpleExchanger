@@ -12,7 +12,7 @@
 class Core : public Singleton<Core> {
 public:
   template <ESide side, typename... Args>
-  std::unordered_set<size_t> make_order(Args &&...args) {
+  std::unordered_set<size_t> &make_order(Args &&...args) {
     auto trade_handler = [this](size_t our_order_id, size_t other_order_id,
                                 size_t quantity) {
       const Order &our_order = order_book_.get_order_by_id(our_order_id);
