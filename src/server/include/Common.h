@@ -1,5 +1,4 @@
-#ifndef CLIENSERVERECN_COMMON_HPP
-#define CLIENSERVERECN_COMMON_HPP
+#pragma once
 
 #include <string>
 
@@ -24,5 +23,3 @@ enum class EFields {
 };
 
 enum class ESide { ESell, EBuy };
-
-#endif // CLIENSERVERECN_COMMON_HPP
