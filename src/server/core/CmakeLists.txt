@@ -1,7 +1,15 @@
+project(Core)
+
 cmake_minimum_required(VERSION 3.21)
 
-file(GLOB_RECURSE CORE *.cpp *.hpp)
+add_library(Core STATIC
+    include/Common.hpp
+    include/Singleton.hpp
+    src/Orders.cpp
+    src/User.cpp
+    src/Core.cpp
+    src/Core.h
+)
 
-add_library(Core ${CORE})
-
-target_include_directories(Core PUBLIC ${PROJECT_SOURCE_DIR})
+target_include_directories(Core PUBLIC include)
+target_link_libraries(Core PUBLIC Json)

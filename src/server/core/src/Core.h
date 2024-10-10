@@ -1,10 +1,9 @@
 #pragma once
 
-#include "src/server/include/Common.h"
-#include "src/server/core/orders/Orders.cpp"
-#include "src/server/include/Singleton.hpp"
-#include "src/server/core/user/User.cpp"
-#include "import/json/json.hpp"
+#include "Orders.cpp"
+#include <Singleton.hpp>
+#include "User.cpp"
+#include <json/json.hpp>
 
 #include <unordered_map>
 #include <unordered_set>

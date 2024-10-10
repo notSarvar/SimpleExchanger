@@ -1,4 +1,7 @@
+project(Server)
+
 cmake_minimum_required(VERSION 3.21)
 
 add_subdirectory(core)
-add_subdirectory(include)
+
+add_executable(Server Server.cpp)

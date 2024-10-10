@@ -1,5 +1,5 @@
-#include "src/server/include/Common.h"
-#include "import/json/json.hpp"
+#include <Common.hpp>
+#include <json/json.hpp>
 
 #include <queue>
 

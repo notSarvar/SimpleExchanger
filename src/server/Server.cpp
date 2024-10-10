@@ -1,6 +1,6 @@
-#include "src/server/include/Common.h"
-#include "src/server/core/Core.h"
-#include "import/json/json.hpp"
+#include "core/include/Common.hpp"
+#include "core/src/Core.h"
+#include <json.hpp>
 
 
 #include <boost/asio.hpp>
