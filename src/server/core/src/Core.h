@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Orders.cpp"
-#include <Singleton.hpp>
+#include "Orders.h"
 #include "User.cpp"
+#include <include/Singleton.hpp>
 #include <json/json.hpp>
 
 #include <unordered_map>

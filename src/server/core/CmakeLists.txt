@@ -1,10 +1,12 @@
+cmake_minimum_required(VERSION 3.21)
 project(Core)
 
-cmake_minimum_required(VERSION 3.21)
+include_directories(${PROJECT_SOURCE_DIR}/import/json)
 
 add_library(Core STATIC
     include/Common.hpp
     include/Singleton.hpp
+    src/Orders.h
     src/Orders.cpp
     src/User.cpp
     src/Core.cpp
