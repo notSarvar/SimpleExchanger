@@ -20,7 +20,7 @@ Exchanger provides:
 
  ***
 
- To build you need this commands run in terminal:
+ To build the program you need to run this commands in terminal:
   ```sh
     mkdir build
     cd build
@@ -28,8 +28,11 @@ Exchanger provides:
     make 
   ```
 ## Using
+---
+  After you build the program, the current bin files will be located in the $bin$ folder, where you can run them.
     
-    ./Server <port number (5555 is default)> 
-    
-    ./Client <server's port number (5555 is default)>
-    
+  ```sh
+  ./Server <port number (5555 is default)> 
+  
+  ./Client <servers port number (5555 is default)>
+  ```    

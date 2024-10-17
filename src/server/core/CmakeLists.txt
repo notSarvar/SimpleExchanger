@@ -1,6 +1,6 @@
 project(Core)
 
-add_library(Core STATIC
+add_library(Core 
     include/Common.hpp
     include/Singleton.hpp
     src/Orders.h
@@ -9,6 +9,3 @@ add_library(Core STATIC
     src/Core.cpp
     src/Core.h
 )
-
-target_include_directories(Core PUBLIC include)
-target_link_libraries(Core PUBLIC Json)
