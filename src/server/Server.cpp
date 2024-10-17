@@ -1,5 +1,5 @@
-#include "core/include/Common.hpp"
-#include "core/src/Core.h"
+#include <Common.hpp>
+#include <Core.h>
 #include <json.hpp>
 
 

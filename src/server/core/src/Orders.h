@@ -1,4 +1,4 @@
-#include "../include/Common.hpp"
+#include <Common.hpp>
 #include <json.hpp>
 
 #include <queue>

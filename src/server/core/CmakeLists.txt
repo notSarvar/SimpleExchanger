@@ -1,7 +1,4 @@
-cmake_minimum_required(VERSION 3.21)
 project(Core)
-
-include_directories(${PROJECT_SOURCE_DIR}/import/json)
 
 add_library(Core STATIC
     include/Common.hpp
